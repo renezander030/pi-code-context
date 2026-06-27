@@ -1,7 +1,7 @@
 {
   "name": "pi-code-context",
   "version": "1.0.0",
-  "description": "Automatic semantic code indexing for pi — keeps every project's Qdrant index fresh via a bundled CLI wrapping @mhalder/qdrant-mcp-server (Qdrant + Ollama). Shares collections with the code-context MCP search_code tool.",
+  "description": "Automatic semantic code indexing for pi — a fully standalone bundled CLI (no server) that keeps every project's Qdrant index fresh and exposes an agent-callable search_code tool, powered by Qdrant + Ollama.",
   "keywords": [
     "pi-package",
     "pi",

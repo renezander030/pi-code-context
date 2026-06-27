@@ -2,26 +2,25 @@
 
 Automatic semantic code indexing for [pi](https://pi.dev). It keeps every
 project's vector index fresh in the background and exposes a real CLI for
-indexing and search — no manual MCP tool calls required.
+indexing and search.
 
-It bundles a thin CLI around the
+The package is **fully standalone** — there is no background server to run. It
+bundles a thin CLI that reuses the indexing engine from the
 [`@mhalder/qdrant-mcp-server`](https://www.npmjs.com/package/@mhalder/qdrant-mcp-server)
-indexing engine and drives that engine **directly** (no MCP server / stdio
-overhead). The package is fully self-contained: **no MCP server needs to be
-running.** Indexing, the agent-callable `search_code` tool, and the slash
-commands are all powered by the bundled CLI talking straight to Qdrant + Ollama.
+npm package as a plain library, calling it **directly**. Indexing, the
+agent-callable `search_code` tool, and the slash commands all run through the
+bundled CLI, talking straight to Qdrant + Ollama.
 
-Collection naming matches the upstream `@mhalder/qdrant-mcp-server` scheme
-(git-remote/abspath → `code_<hash8>`), so if you *do* still run that MCP server
-elsewhere, the indexes are interchangeable.
+Collection naming follows the same scheme that npm package uses
+(git-remote/abspath → `code_<hash8>`), so indexes are interchangeable with any
+other tooling built on the same engine.
 
 ## How it works
 
 - **Vector store:** Qdrant (`QDRANT_URL`, default `http://localhost:6333`)
 - **Embeddings:** Ollama (`EMBEDDING_MODEL`, default `nomic-embed-text`, via
   `EMBEDDING_BASE_URL`, default `http://localhost:11434`)
-- **Collection naming:** git-remote URL (or absolute path) → `code_<md5[:8]>`,
-  matching the MCP server exactly.
+- **Collection naming:** git-remote URL (or absolute path) → `code_<md5[:8]>`.
 
 The extension runs `code-context auto` on session start for any real project
 (detected via `.git`, `package.json`, `go.mod`, `Cargo.toml`, `AGENTS.md`, …):
@@ -73,9 +72,9 @@ Inside pi:
 ### Agent tool
 
 The extension also registers a `search_code` tool the **LLM** can call directly
-(natural-language query, optional `limit` / `fileTypes` / `pathPattern`). This
-replaces the `code-context` MCP `search_code` direct tool, so the agent keeps
-semantic search with no MCP server running.
+(natural-language query, optional `limit` / `fileTypes` / `pathPattern`),
+backed entirely by the bundled CLI. The agent gets semantic search with no
+server to run.
 
 ## CLI
 
@@ -102,7 +101,7 @@ ln -s "$(pi list --paths 2>/dev/null | grep pi-code-context)/bin/code-context" ~
 
 ## Configuration
 
-All via environment variables (same names the MCP server uses):
+All via environment variables:
 
 | Var | Default | Purpose |
 |---|---|---|
