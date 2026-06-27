@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# code-context launcher.
+#
+# The underlying indexing engine (@mhalder/qdrant-mcp-server) ships native
+# tree-sitter modules and requires Node >=22 <25. The user's default `node`
+# may be outside that range (e.g. node 25), so we pick a compatible runtime:
+#
+#   1. $CODE_CONTEXT_NODE if set
+#   2. current `node` if its major version is in [22, 24]
+#   3. common Homebrew / nvm node@22..24 locations
+#   4. fall back to `node` and let it fail loudly
+#
+set -euo pipefail
+
+# Resolve this script's real directory (follow symlinks).
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  TARGET="$(readlink "$SOURCE")"
+  case "$TARGET" in
+    /*) SOURCE="$TARGET" ;;
+    *)  SOURCE="$( cd "$( dirname "$SOURCE" )" && pwd )/$TARGET" ;;
+  esac
+done
+DIR="$( cd "$( dirname "$SOURCE" )" && pwd )"
+CLI="$DIR/../src/cli.mjs"
+
+node_major() { "$1" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
+compatible() { local m; m="$(node_major "$1")"; [ "$m" -ge 22 ] && [ "$m" -lt 25 ]; }
+
+pick_node() {
+  if [ -n "${CODE_CONTEXT_NODE:-}" ] && [ -x "$CODE_CONTEXT_NODE" ]; then
+    echo "$CODE_CONTEXT_NODE"; return
+  fi
+  if command -v node >/dev/null 2>&1 && compatible "$(command -v node)"; then
+    command -v node; return
+  fi
+  for c in \
+    /opt/homebrew/opt/node@24/bin/node \
+    /opt/homebrew/opt/node@22/bin/node \
+    /usr/local/opt/node@24/bin/node \
+    /usr/local/opt/node@22/bin/node \
+    "$HOME"/.nvm/versions/node/v24*/bin/node \
+    "$HOME"/.nvm/versions/node/v23*/bin/node \
+    "$HOME"/.nvm/versions/node/v22*/bin/node; do
+    for n in $c; do
+      [ -x "$n" ] && compatible "$n" && { echo "$n"; return; }
+    done
+  done
+  command -v node 2>/dev/null || echo node
+}
+
+NODE_BIN="$(pick_node)"
+exec "$NODE_BIN" "$CLI" "$@"

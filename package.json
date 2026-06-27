@@ -1,0 +1,43 @@
+{
+  "name": "pi-code-context",
+  "version": "1.0.0",
+  "description": "Automatic semantic code indexing for pi — keeps every project's Qdrant index fresh via a bundled CLI wrapping @mhalder/qdrant-mcp-server (Qdrant + Ollama). Shares collections with the code-context MCP search_code tool.",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "code-search",
+    "semantic-search",
+    "qdrant",
+    "ollama",
+    "embeddings",
+    "rag"
+  ],
+  "license": "MIT",
+  "author": "renezander030",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renezander030/pi-code-context.git"
+  },
+  "bin": {
+    "code-context": "./bin/code-context"
+  },
+  "pi": {
+    "extensions": ["./extensions/index.ts"]
+  },
+  "dependencies": {
+    "@mhalder/qdrant-mcp-server": "3.3.5"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "files": [
+    "bin",
+    "src",
+    "extensions",
+    "README.md",
+    "LICENSE"
+  ]
+}
