@@ -7,9 +7,13 @@ indexing and search — no manual MCP tool calls required.
 It bundles a thin CLI around the
 [`@mhalder/qdrant-mcp-server`](https://www.npmjs.com/package/@mhalder/qdrant-mcp-server)
 indexing engine and drives that engine **directly** (no MCP server / stdio
-overhead). Collection naming is identical to the MCP server, so indexes are
-shared with the `code-context` MCP `search_code` tool — index here, search
-there, and vice versa.
+overhead). The package is fully self-contained: **no MCP server needs to be
+running.** Indexing, the agent-callable `search_code` tool, and the slash
+commands are all powered by the bundled CLI talking straight to Qdrant + Ollama.
+
+Collection naming matches the upstream `@mhalder/qdrant-mcp-server` scheme
+(git-remote/abspath → `code_<hash8>`), so if you *do* still run that MCP server
+elsewhere, the indexes are interchangeable.
 
 ## How it works
 
@@ -65,6 +69,13 @@ Inside pi:
 | `/reindex` | Incremental reindex of changed files |
 | `/index-status` | Show index status (collection, chunk count, last updated) |
 | `/index-search <query>` | Semantic search over the project's index |
+
+### Agent tool
+
+The extension also registers a `search_code` tool the **LLM** can call directly
+(natural-language query, optional `limit` / `fileTypes` / `pathPattern`). This
+replaces the `code-context` MCP `search_code` direct tool, so the agent keeps
+semantic search with no MCP server running.
 
 ## CLI
 

@@ -26,6 +26,7 @@
  *   CODE_CONTEXT_NODE   path to a Node 22-24 binary, if your default node is incompatible
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
@@ -230,6 +231,89 @@ export default function (pi: ExtensionAPI) {
       } catch (e) {
         ctx.ui.notify(`code-context search failed: ${(e as Error).message}`, "error");
       }
+    },
+  });
+
+  // ── Agent-callable semantic search tool ───────────────────────────────────
+  // Replaces the code-context MCP `search_code` direct tool so the agent keeps
+  // semantic search with no MCP server running. Backed entirely by the CLI.
+  pi.registerTool({
+    name: "search_code",
+    label: "Search Code",
+    description:
+      "Search the current project's indexed codebase using a natural language query. " +
+      "Returns semantically relevant code chunks with file paths and line numbers. " +
+      "Backed by a local Qdrant + Ollama index maintained by pi-code-context.",
+    promptSnippet: "Semantic code search over the indexed project",
+    promptGuidelines: [
+      "Use search_code for conceptual or natural-language code lookups (\"where is auth handled\") instead of grep when you don't know exact strings.",
+    ],
+    parameters: Type.Object({
+      query: Type.String({ description: "Natural language search query" }),
+      limit: Type.Optional(
+        Type.Number({ description: "Max results (default 5, max 100)" }),
+      ),
+      fileTypes: Type.Optional(
+        Type.Array(Type.String(), {
+          description: "Filter by file extensions, e.g. ['.ts', '.py']",
+        }),
+      ),
+      pathPattern: Type.Optional(
+        Type.String({ description: "Filter by path glob, e.g. 'src/**'" }),
+      ),
+    }),
+    async execute(_toolCallId, params, signal, _onUpdate, ctx) {
+      if (!cliAvailable()) {
+        throw new Error(`code-context CLI not found at ${CLI}`);
+      }
+      const args = ["search", ctx.cwd, params.query, "--json"];
+      if (params.limit) args.push("--limit", String(params.limit));
+      if (params.fileTypes?.length) args.push("--types", params.fileTypes.join(","));
+      if (params.pathPattern) args.push("--glob", params.pathPattern);
+
+      const res = await pi.exec(CLI, args, { cwd: ctx.cwd, timeout: 120000, signal });
+      if (res.code !== 0) {
+        throw new Error((res.stderr || res.stdout || "search failed").trim());
+      }
+
+      let results: Array<{
+        filePath: string;
+        startLine: number;
+        endLine: number;
+        language: string;
+        score: number;
+        content: string;
+      }> = [];
+      try {
+        results = JSON.parse(res.stdout || "[]");
+      } catch {
+        // CLI prints a plain "No results" line when the query matches nothing.
+        return {
+          content: [{ type: "text", text: (res.stdout || "No results.").trim() }],
+          details: { results: [] },
+        };
+      }
+
+      if (results.length === 0) {
+        return {
+          content: [{ type: "text", text: `No results for: "${params.query}"` }],
+          details: { results: [] },
+        };
+      }
+
+      const text = results
+        .map(
+          (r, i) =>
+            `--- Result ${i + 1} (score ${r.score.toFixed(3)}) ---\n` +
+            `${r.filePath}:${r.startLine}-${r.endLine} [${r.language}]\n\n` +
+            `${r.content}`,
+        )
+        .join("\n\n");
+
+      return {
+        content: [{ type: "text", text: `Found ${results.length} result(s):\n\n${text}` }],
+        details: { results },
+      };
     },
   });
 }
